@@ -1,30 +1,52 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
+from database import SessionLocal, Lead
 
 app = FastAPI()
 
-# Configura CORS (para o front-end acessar a API)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Em produção, troque pelo domínio do seu front-end
-    allow_methods=["*"],
+    allow_origins=["*", "https://km-homefit-fastapi.onrender.com"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
-# Modelo Pydantic para validação
-class Lead(BaseModel):
-    email: str
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
-# "Banco de dados" temporário (em memória)
-leads_db = []
-
-@app.post("/api/leads")
-async def create_lead(lead: Lead):
-    leads_db.append(lead.email)
-    print(f"E-mail salvo: {lead.email}")  # Para debug
-    return {"message": "E-mail cadastrado com sucesso!"}
+@app.post("/api/leads", status_code=status.HTTP_201_CREATED)
+async def create_lead(email: str, db: Session = Depends(get_db)):
+    if not email or "@" not in email:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Formato de e-mail inválido"
+        )
+    
+    db_lead = db.query(Lead).filter(Lead.email == email).first()
+    if db_lead:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="E-mail já cadastrado"
+        )
+    
+    new_lead = Lead(email=email)
+    db.add(new_lead)
+    try:
+        db.commit()
+        return {"message": "E-mail salvo com sucesso!"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao salvar no banco: {str(e)}"
+        )
 
 @app.get("/api/leads")
-async def get_leads():
-    return {"leads": leads_db}
+async def get_leads(db: Session = Depends(get_db)):
+    leads = db.query(Lead).all()
+    return {"leads": [lead.email for lead in leads]}

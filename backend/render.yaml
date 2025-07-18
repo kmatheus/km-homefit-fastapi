@@ -5,5 +5,5 @@ services:
     buildCommand: pip install -r backend/requirements.txt
     startCommand: uvicorn backend.main:app --host 0.0.0.0 --port 10000
     envVars:
-      - key: PYTHON_VERSION
-        value: "3.9"
+      - key: DATABASE_URL
+        value: postgresql://homefit_user:bpiCNJ6QP004hppSmhCqHZHke1tOHfOX@dpg-d1r9juripnbc73f7bp9g-a.oregon-postgres.render.com/homefit
