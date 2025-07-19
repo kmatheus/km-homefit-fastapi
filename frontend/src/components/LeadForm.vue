@@ -70,7 +70,7 @@ export default {
         this.message = "✅ Cadastro realizado!";
         this.email = "";
       } catch (error) {
-        this.message = `❌ ${error.message}`;
+        this.message = `❌ ${error.detail}`;
       }
     },
   },
